@@ -1,0 +1,9 @@
+{
+  "id": "vault-recorder",
+  "name": "Vault Recorder",
+  "version": "0.2.0",
+  "minAppVersion": "1.11.4",
+  "description": "Records the microphone, or a meeting (system audio plus microphone), into the daily log or the active note, with a level meter showing that audio is being captured.",
+  "author": "Nicklas",
+  "isDesktopOnly": false
+}

@@ -1,0 +1,86 @@
+# Cuts a draft GitHub release when a version tag is pushed.
+#
+# The Obsidian community directory installs a plugin from the release whose tag
+# matches manifest.json's `version` exactly, reading main.js, manifest.json and
+# styles.css from that release's assets; without styles.css the plugin installs
+# unstyled. The tag is therefore the contract: push `1.2.3`, not `v1.2.3`.
+#
+# The release is left as a draft on purpose, so the assets can be checked before
+# anyone can install them.
+#
+# The build first writes build/engine-loader.txt and build/engine.wasm.gz (the
+# speech engine's loader and its WebAssembly, which main.js carries inside it)
+# and then main.js; esbuild.config.mjs says why. All of it comes from the
+# locked dependencies, so a clean checkout builds with nothing else. The
+# directory's scanner rebuilds main.js and compares it byte for byte, which the
+# build allows: it was measured to give the same main.js from two clean
+# checkouts.
+#
+# Each of the three files gets a signed provenance attestation: a record, kept
+# by GitHub, that this workflow built it from the tagged commit. Anyone can
+# check a downloaded file against it with
+# `gh attestation verify main.js -R nickdin/obsidian-vault-recorder`. The
+# Obsidian community directory's review recommends it.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+# contents: the draft release. id-token: the short-lived identity the
+# attestation is signed with. attestations: storing it. Not artifact-metadata:
+# the attestation action writes a storage record only when it also pushes to an
+# image registry, which this workflow does not.
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+
+      - name: Install
+        run: npm ci
+
+      # A red suite stops the draft release. A tag is the one moment the plugin
+      # becomes installable, so every guard the suite holds has to run here;
+      # without it the person deciding whether to publish the draft has no
+      # signal to read.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Check the tag matches manifest.json
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          manifest=$(node -p "require('./manifest.json').version")
+          if [ "$tag" != "$manifest" ]; then
+            echo "Tag $tag does not match manifest.json version $manifest." >&2
+            exit 1
+          fi
+
+      - name: Attest the release files
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Create the draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" --title="$tag" --draft main.js manifest.json styles.css

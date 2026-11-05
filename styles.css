@@ -1,0 +1,290 @@
+/* ==========================================================================
+   Ribbon styling
+   ==========================================================================
+   Four ribbon icons on desktop, three on mobile:
+     1. Quick capture (microphone) — .vault-recorder-recording while active
+     2. At-cursor (file-audio)     — .vault-recorder-recording while active
+     3. Meeting (monitor-play)     — .vault-recorder-recording while active.
+        Registered on desktop only; system-audio loopback does not exist in
+        Obsidian's mobile WebView.
+     4. Level meter (activity)     — .vault-recorder-level-ribbon, hidden by
+        default through .vault-recorder-level-hidden. The CSS variable
+        --vr-level (0–1) drives both colour and fill height.
+   Everything goes through Obsidian's own CSS variables, so it follows the
+   user's theme.
+   ========================================================================== */
+
+/* The pulse marker on whichever ribbon icon started the recording in
+   progress. A red pulse from var(--text-error) says "recording" without
+   turning into an aggressive blink. */
+.side-dock-ribbon-action.vault-recorder-recording,
+.workspace-ribbon .vault-recorder-recording {
+	color: var(--text-error);
+	animation: vault-recorder-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes vault-recorder-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.45;
+	}
+}
+
+/* The level meter's hidden-by-default state. A CSS class rather than an
+   inline display:none, so Obsidian's layout re-rendering cannot reset it by
+   accident. */
+.vault-recorder-level-hidden {
+	display: none !important;
+}
+
+/* The level meter.
+   The primary signal is a colour transition on the icon, muted → accent →
+   warning, through color-mix over --vr-level (0..1). Silence and speech are
+   clearly different at a glance.
+   The secondary signal is a classic VU-meter fill rising from the bottom of
+   the icon's background, a linear-gradient driven by --vr-level.
+   Ornamental: a mild scale (up to 1.08) at peak. No pulse here — it would
+   compete with the red pulse on the start/stop ribbons. */
+.vault-recorder-level-ribbon {
+	position: relative;
+	/* --vr-level is set from main.ts by the RAF loop. Defaults to 0. */
+	--vr-level: 0;
+	/* No false click affordance — the meter is passive. */
+	pointer-events: none;
+	/* The colour transition, as the primary signal. color-mix is supported by
+	   the Electron/Chromium build Obsidian uses (v111+). A low level gives
+	   muted grey, a high level a warm warning. Obsidian's --text-warning
+	   varies by theme but is always distinctly warm. */
+	color: color-mix(
+		in oklab,
+		var(--text-muted) 0%,
+		var(--text-warning) calc(var(--vr-level) * 100%)
+	);
+	/* A mild scale, as ornamental reinforcement. */
+	transform: scale(calc(1 + var(--vr-level) * 0.08));
+	transition:
+		transform 40ms linear,
+		color 40ms linear;
+}
+
+/* The VU-meter fill: the background fills from the bottom up to
+   --vr-level * 100 %. It runs from a warm colour at the bottom to
+   transparent above, so silence is nearly invisible and speech is a clear
+   bar. */
+.vault-recorder-level-ribbon::before {
+	content: "";
+	position: absolute;
+	inset: 2px;
+	border-radius: var(--radius-s);
+	background: linear-gradient(
+		to top,
+		var(--text-warning) 0%,
+		var(--text-accent) 70%,
+		transparent 100%
+	);
+	background-size: 100% 100%;
+	/* Fill height: empty at --vr-level = 0, full at 1. The trick is scaleY
+	   anchored to the bottom. */
+	transform-origin: bottom center;
+	transform: scaleY(var(--vr-level));
+	opacity: calc(0.35 + var(--vr-level) * 0.5);
+	pointer-events: none;
+	transition:
+		transform 40ms linear,
+		opacity 40ms linear;
+	z-index: -1;
+}
+
+/* Read-only text fields in the settings panel. The muted colour says
+   "information, not editable". */
+.vault-recorder-readonly {
+	color: var(--text-muted) !important;
+	background-color: var(--background-secondary) !important;
+	cursor: default;
+}
+
+/* The state and the transcript the plugin draws under a recording's embed, and
+   the state line at the top of a transcript note. Nothing here is in the note
+   itself: these elements exist only while the plugin runs. */
+.vault-recorder-drawing {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.vault-recorder-drawing-block {
+	margin: var(--size-4-1) 0 var(--size-4-3);
+	padding-left: var(--size-4-2);
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.vault-recorder-drawing-inline {
+	margin-left: var(--size-4-2);
+}
+
+.vault-recorder-drawing-state {
+	font-style: italic;
+}
+
+.vault-recorder-drawing-text {
+	margin-top: var(--size-4-1);
+	color: var(--text-normal);
+	font-size: var(--font-text-size);
+}
+
+.vault-recorder-drawing-top {
+	margin-bottom: var(--size-4-3);
+}
+
+/* The buttons on the drawn state line: cancel, try again, transcribe. */
+.vault-recorder-drawing-action {
+	margin-left: var(--size-4-2);
+	padding: 0 var(--size-4-2);
+	height: auto;
+	font-size: var(--font-ui-smaller);
+}
+
+.vault-recorder-drawing-why {
+	margin-left: var(--size-4-2);
+}
+
+/* When the audio will go, or went (keep-time.ts). */
+.vault-recorder-drawing-audio {
+	margin-left: var(--size-4-2);
+	color: var(--text-muted);
+}
+
+/* "Audio deleted 2026-11-02, transcript kept", where the embed of a deleted recording was. */
+.vault-recorder-drawing-deleted {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* Obsidian's box for a recording that is not there, given way to the words above. */
+.vault-recorder-drawing-gone {
+	display: none !important; /* Obsidian gives its embed box a display of its own */
+}
+
+/* The queue panel: transcript notes by group (queue-panel.ts). */
+.vault-recorder-queue-group {
+	margin-bottom: var(--size-4-4);
+}
+
+.vault-recorder-queue-row {
+	padding: var(--size-4-2) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vault-recorder-queue-title {
+	font-weight: var(--font-semibold);
+}
+
+.vault-recorder-queue-state,
+.vault-recorder-queue-left,
+.vault-recorder-queue-why,
+.vault-recorder-queue-audio-held,
+.vault-recorder-queue-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.vault-recorder-queue-meter {
+	width: 100%;
+}
+
+.vault-recorder-queue-actions {
+	margin-top: var(--size-4-1);
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+}
+
+/* The four removal entries (removal.ts): one line at the top of a transcript
+   note and one under each queue row; an entry that cannot apply is greyed, and
+   its title says why. */
+.vault-recorder-drawing-removal {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-1);
+}
+
+.vault-recorder-drawing-removal button:disabled,
+.vault-recorder-queue-removal button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.vault-recorder-queue-actions button {
+	height: auto;
+	padding: 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+}
+
+/* "2 speakers unnamed — name them". Drawn with the state line (note-drawing.ts)
+   it is a button: it opens the naming list. In a queue row it is a plain line;
+   the "Name speakers" button beside it does the opening. */
+.vault-recorder-drawing-unnamed,
+.vault-recorder-queue-unnamed {
+	margin-left: var(--size-4-2);
+	color: var(--text-accent);
+	cursor: pointer;
+}
+
+.vault-recorder-queue-unnamed {
+	margin-left: 0;
+	font-size: var(--font-ui-smaller);
+	cursor: default;
+}
+
+/* A turn's time and speaker label, clickable in a rendered transcript
+   (turn-clicks.ts): the time plays the recording from there, the label opens
+   the naming list. */
+.vault-recorder-turn-time,
+.vault-recorder-turn-speaker {
+	cursor: pointer;
+}
+
+.vault-recorder-turn-time {
+	color: var(--text-muted);
+}
+
+.vault-recorder-turn-time:hover,
+.vault-recorder-turn-speaker:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+/* The naming list (speaker-picker.ts). */
+.vault-recorder-picker {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+}
+
+.vault-recorder-picker-group {
+	margin-top: var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.vault-recorder-picker-choice {
+	justify-content: flex-start;
+	text-align: left;
+}
+
+.vault-recorder-picker-form {
+	display: flex;
+	gap: var(--size-4-2);
+}
+
+.vault-recorder-picker-box {
+	flex: 1;
+}
+
+.vault-recorder-picker-problem {
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}

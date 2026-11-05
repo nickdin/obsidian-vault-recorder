@@ -1,0 +1,4 @@
+{
+  "message": "Requested. It waits for the transcriber.",
+  "note": "---\nrule-version: 1\naudio: \"[[Recording 20261019091200.m4a]]\"\naudio-bytes: 2314752\nmode: daily-log\nrecorded: 2026-10-19T09:12:00+02:00\nlinked-from: \"[[2026-10-19]]\"\nspeaker-split: false\nattempt: 1\ntranscribe: requested\ntranscribe-kind: hand-off\n---\n"
+}
